@@ -4,12 +4,14 @@ import pandas as pd
 import pywhatkit as kit
 import time
 
+PHONE_NUMBER_COLUMNS = ['Phone Number', 'Phone', 'Mob. No.' 'Mobile', 'Contact Number']
+
 def send_whatsapp_message(phone_numbers, message):
     for number in phone_numbers:
         try :
             print(number)
         # Send message at the current time + 1 minute
-            # kit.sendwhatmsg_instantly(number, message)
+            kit.sendwhatmsg_instantly(number, message)
             time.sleep(10)  # Wait to ensure the message is sent before sending the next one
         except Exception as e :
             messagebox.showerror("Error", f"Failed to send message to {number}. Error: {e}")
@@ -25,7 +27,17 @@ def browse_file():
         file_entry.delete(0, tk.END)
         file_entry.insert(0, filename)
 
+def find_phone_number_column(df):
+    for col in df.columns:
+        if col in PHONE_NUMBER_COLUMNS:
+            return col
+    return None
 
+def validate_phone_number(number):
+    number = number.replace(" ", "")  # Remove spaces
+    if len(number) == 10 and number.isdigit():
+        number = "+91" + number
+    return number
 
 def start_sending():
     file_path = file_entry.get()
@@ -36,8 +48,17 @@ def start_sending():
         return
 
     try:
+        # Read only the first row to find the phone number column
+        df = pd.read_excel(file_path, nrows=1)
+        phone_column = find_phone_number_column(df)
+        
+        if not phone_column:
+            messagebox.showerror("Error", "The Excel file must contain a column with phone numbers.")
+            return
+        
+        # Read the entire file now that we know which column contains phone numbers
         df = pd.read_excel(file_path)
-        phone_numbers = df['Phone Number'].astype(str).tolist()
+        phone_numbers = df[phone_column].astype(str).apply(validate_phone_number).tolist()
         send_whatsapp_message(phone_numbers, message)
         messagebox.showinfo("Success", "Messages sent successfully.")
     except Exception as e:
@@ -48,10 +69,8 @@ root = tk.Tk()
 root.title("WhatsApp Message Sender")
 
 # Configure the grid layout for better control over the placement of widgets
-# root.grid_columnconfigure(0, weight=1)
-# root.grid_columnconfigure(1, weight=3)
-# root.maxsize(900, 600) 
-root.config(bg="skyblue")  # specify background color
+root.grid_columnconfigure(0, weight=1)
+root.grid_columnconfigure(1, weight=3)
 
 # File selection
 file_label = tk.Label(root, text="Select Excel File with Phone Numbers:")
